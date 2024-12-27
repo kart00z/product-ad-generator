@@ -1,3 +1,19 @@
+"""
+Shopify/Web Ad Creative Generator
+----------------------------
+
+This script generates HTML5 ad creatives from any product page of an online store. It extracts
+product information and creates responsive, animated ad banners in multiple sizes.
+
+Main features:
+- Product data extraction from any product page of an online store
+- Image validation and processing
+- HTML5 ad creative generation
+- Multi-size banner support
+- Image carousel implementation
+
+Author: Kartikye Kashyap
+"""
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -17,29 +33,22 @@ from selenium.webdriver.chrome.options import Options
 import cv2
 import base64
 from io import BytesIO
-from playwright.sync_api import sync_playwright
-from PIL import ImageSequence
 
 def clean_image_url(url):
     """
     Cleans image URLs to get highest quality version
     """
     try:
-        # AJIO specific cleaning (replace small dimensions with larger ones)
         if 'assets.ajio.com' in url:
-            # Replace dimension patterns like -78Wx98H- with -1200Wx1500H-
             url = re.sub(r'-\d+Wx\d+H-', '-1200Wx1500H-', url)
         
-        # Generic CDN parameter cleaning
-        # Remove common low-quality indicators
+        
         url = re.sub(r'(?i)(small|thumb|tiny|mobile|low|min)', 'large', url)
         
-        # Remove or replace size-related parameters
         url = re.sub(r'[?&](w|width|h|height)=\d+', '', url)
         url = re.sub(r'[?&]size=\d+x\d+', '', url)
         url = re.sub(r'[?&]quality=\d+', '', url)
         
-        # Try to get highest quality version
         if '?' in url:
             url = url.split('?')[0]
             
@@ -61,34 +70,26 @@ def is_valid_image(image_url, min_width=200, min_height=200, max_compression_rat
         max_compression_ratio: Maximum acceptable compression ratio (lower means more compressed/lower quality)
     """
     try:
-        # Download image
         response = urlopen(image_url, timeout=5)
         image_data = response.read()
         
-        # Open image with PIL
         img = Image.open(io.BytesIO(image_data))
         
-        # Check dimensions
         width, height = img.size
         if width < min_width or height < min_height:
             print(f"Debug - Image rejected (too small): {width}x{height}")
             return False
             
-        # Convert to RGB if necessary
         if img.mode != 'RGB':
             img = img.convert('RGB')
             
-        # Convert to numpy array for analysis
         img_array = np.array(img)
         
-        # Check if image is blank or solid color
         std_dev = np.std(img_array)
         if std_dev < 10:  # Arbitrary threshold for "blankness"
             print(f"Debug - Image rejected (blank/solid color): std_dev={std_dev}")
             return False
             
-        # Check for low quality/high compression
-        # Calculate entropy as a measure of image detail
         histogram = img.histogram()
         histogram_length = sum(histogram)
         samples_probability = [hist_value/histogram_length for hist_value in histogram]
@@ -98,8 +99,6 @@ def is_valid_image(image_url, min_width=200, min_height=200, max_compression_rat
             print(f"Debug - Image rejected (low quality): entropy={entropy}")
             return False
             
-        # Check for visible pixelation
-        # Downscale and upscale to detect pixel patterns
         small = img.resize((width//4, height//4), Image.Resampling.LANCZOS)
         large = small.resize((width, height), Image.Resampling.NEAREST)
         diff = np.array(img) - np.array(large)
@@ -123,28 +122,22 @@ def is_duplicate_image(new_image_url, existing_images, similarity_threshold=0.95
         similarity_threshold: Threshold for considering images as duplicates (0-1)
     """
     try:
-        # Download and process new image
         response = urlopen(new_image_url, timeout=5)
         new_img_data = response.read()
         new_img = Image.open(io.BytesIO(new_img_data))
         
-        # Convert to small grayscale for faster comparison
         new_img = new_img.convert('L').resize((32, 32))
         new_array = np.array(new_img)
         
-        # Compare with existing images in our list
         for existing_url in existing_images:
             try:
-                # Download and process existing image
                 response = urlopen(existing_url, timeout=5)
                 existing_img_data = response.read()
                 existing_img = Image.open(io.BytesIO(existing_img_data))
                 
-                # Convert to small grayscale
                 existing_img = existing_img.convert('L').resize((32, 32))
                 existing_array = np.array(existing_img)
                 
-                # Calculate similarity
                 correlation = np.corrcoef(new_array.flatten(), existing_array.flatten())[0,1]
                 if correlation > similarity_threshold:
                     print(f"Debug - Image rejected (duplicate): similarity={correlation:.2f}")
@@ -165,7 +158,6 @@ def extract_product_data(product_url):
     Extracts product data from a public product page with more flexible selectors
     """
     try:
-        # List of common User-Agents to rotate through/we do this to circumvent the bot detection
         user_agents = [
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -173,12 +165,11 @@ def extract_product_data(product_url):
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0'
         ]
         
-        # Modified headers to be more browser-like and explicitly handle encoding
         headers = {
             'User-Agent': random.choice(user_agents),
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',  # Explicitly state accepted encodings
+            'Accept-Encoding': 'gzip, deflate',  
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
             'Cache-Control': 'no-cache',
@@ -187,19 +178,16 @@ def extract_product_data(product_url):
         
         session = requests.Session()
         
-        # Try up to 3 times with different User-Agents. We do this to circumvent the bot detection
         for attempt in range(3):
             try:
                 headers['User-Agent'] = random.choice(user_agents)
                 response = requests.get(product_url, headers=headers, timeout=10)
                 response.raise_for_status()
                 
-                # Debug information
                 print("\nResponse Headers:", dict(response.headers))
                 print("Content-Type:", response.headers.get('content-type'))
                 print("Content-Encoding:", response.headers.get('content-encoding'))
                 
-                # Try to get content, falling back to raw text if decompression fails
                 try:
                     if response.headers.get('content-encoding') == 'gzip':
                         import gzip
@@ -213,30 +201,25 @@ def extract_product_data(product_url):
                     print(f"Warning - Decompression failed: {str(e)}, falling back to raw text")
                     content = response.text
                 
-                # Debug output
                 print("\nResponse Status:", response.status_code)
                 print("Response Encoding:", response.encoding)
                 print("\nFirst 500 characters of decoded response:")
                 print(content[:500])
                 
-                # Write response to file for debugging
                 with open('debug_response.html', 'w', encoding='utf-8') as f:
                     f.write(content)
                 
                 soup = BeautifulSoup(content, 'html.parser')
                 product_data = {}
                 
-                # Try to find structured data first
                 for script in soup.find_all('script', {'type': 'application/ld+json'}):
                     try:
                         data = json.loads(script.string)
                         print("\nDebug - Found structured data:", json.dumps(data, indent=2)[:500])
                         
-                        # Check if it's product data
                         if isinstance(data, dict) and data.get('@type') == 'Product':
                             product_data['title'] = data.get('name')
                             
-                            # Get price from offers and that we can generate 
                             
                             if 'offers' in data:
                                 offers = data['offers']
@@ -245,7 +228,6 @@ def extract_product_data(product_url):
                                 elif isinstance(offers, list) and offers:
                                     product_data['price'] = float(offers[0].get('price', 0))
                             
-                            # Get images
                             images = data.get('image', [])
                             if isinstance(images, str):
                                 images = [images]
@@ -257,9 +239,7 @@ def extract_product_data(product_url):
                         print(f"Debug - Error parsing structured data: {str(e)}")
                         continue
                 
-                # If no data found, try meta tags
                 if not product_data.get('images'):
-                    # Try Open Graph tags
                     og_image = soup.find('meta', {'property': 'og:image'})
                     if og_image:
                         product_data['images'] = [og_image.get('content')]
@@ -277,29 +257,24 @@ def extract_product_data(product_url):
                     
                     print("\nDebug - Extracted product data from meta tags:", json.dumps(product_data, indent=2))
                 
-                # If still no data, continue with existing logic...
                 if not product_data.get('images'):
-                    # ... rest of the existing code ...
                     pass
                 
                 break
                 
             except requests.exceptions.RequestException as e:
                 print(f"Attempt {attempt + 1} failed: {str(e)}")
-                if attempt == 2:  # Last attempt
+                if attempt == 2:  
                     raise
-                time.sleep(1)  # Wait before retry
-        
-        # Try to determine if it's WooCommerce
+                time.sleep(1)  
+
         is_woocommerce = 'woocommerce' in content.lower()
 
         if is_woocommerce:
-            # WooCommerce specific extraction
             title_element = soup.select_one('.product_title')
             if title_element:
                 product_data['title'] = title_element.get_text().strip()
             
-            # WooCommerce price - try multiple selectors
             price_selectors = [
                 'p.price span.woocommerce-Price-amount bdi',
                 '.price .woocommerce-Price-amount',
@@ -314,7 +289,6 @@ def extract_product_data(product_url):
                 if price_element:
                     price_text = price_element.get_text().strip()
                     try:
-                        # Extract only numbers and decimal points
                         price = ''.join(c for c in price_text if c.isdigit() or c == '.')
                         if price:
                             product_data['price'] = float(price)
@@ -322,16 +296,13 @@ def extract_product_data(product_url):
                     except:
                         continue
 
-            # WooCommerce images
             images = []
-            # Main product image
             main_image = soup.select_one('.woocommerce-product-gallery__image img')
             if main_image:
                 src = main_image.get('data-src') or main_image.get('src')
                 if src:
                     images.append(src)
             
-            # Gallery images
             gallery_images = soup.select('.woocommerce-product-gallery__image a')
             for img in gallery_images:
                 src = img.get('href')
@@ -340,10 +311,8 @@ def extract_product_data(product_url):
 
             if images:
                 product_data['image_url'] = images[0]
-                product_data['images'] = images[:4]  # Limit to 4 images
+                product_data['images'] = images[:4]  
 
-            # Don't set default rating/review values for WooCommerce
-            # Only add if actually found on the page
             rating_element = soup.select_one('.woocommerce-product-rating .rating')
             review_count_element = soup.select_one('.woocommerce-review-link')
             if rating_element and review_count_element:
@@ -359,7 +328,6 @@ def extract_product_data(product_url):
             # Shopify logic
             product_data = {'title': '', 'price': None, 'images': [], 'description': '', 'rating': None}
             
-            # First try to get price from JSON-LD
             for script in soup.find_all('script', type='application/ld+json'):
                 try:
                     data = json.loads(script.string)
@@ -374,7 +342,6 @@ def extract_product_data(product_url):
                 except:
                     continue
 
-            # If no price found, try meta tags
             if not product_data['price']:
                 price_meta = soup.find('meta', property='og:price:amount')
                 if price_meta:
@@ -383,7 +350,6 @@ def extract_product_data(product_url):
                     except:
                         pass
 
-            # Try to find Shopify product JSON for images
             for script in soup.find_all('script'):
                 if script.string and 'var meta = ' in script.string:
                     try:
@@ -392,7 +358,6 @@ def extract_product_data(product_url):
                         
                         if 'product' in meta_data:
                             product = meta_data['product']
-                            # Get images from product media
                             if 'media' in product:
                                 for media in product['media']:
                                     if media.get('media_type') == 'image':
@@ -400,10 +365,8 @@ def extract_product_data(product_url):
                                         if src:
                                             if not src.startswith('http'):
                                                 src = f"https:{src}"
-                                            # Remove URL parameters to avoid duplicates
                                             base_src = src.split('?')[0]
                                             if base_src not in [img.split('?')[0] for img in product_data['images']]:
-                                                # Clean the URL before adding it
                                                 cleaned_src = clean_image_url(src)
                                                 product_data['images'].append(cleaned_src)
                                 break
@@ -411,28 +374,21 @@ def extract_product_data(product_url):
                         print(f"Debug - Error parsing Shopify JSON: {str(e)}")
                         continue
             
-            # If still no images, try the previous methods
             #We will only fall back to OpenCV if all other methods are exhausted
             if not product_data['images']:
-                # Try meta og:image
                 og_image = soup.find('meta', property='og:image')
                 if og_image:
                     src = og_image.get('content')
                     if src and src not in product_data['images']:
-                        # Clean the URL before adding it
                         cleaned_src = clean_image_url(src)
                         product_data['images'].append(cleaned_src)
 
-            # Debug output
             print("\nDebug - Found images:", product_data['images'])
             print("Debug - Found price:", product_data['price'])
             
-            # Ensure we have max 4 unique images
             product_data['images'] = list(dict.fromkeys([img.split('?')[0] for img in product_data['images']]))[:4]
 
-            # Try to find additional product images
             if len(product_data['images']) < 4:
-                # Try product gallery images
                 gallery_selectors = [
                     '.product-gallery__image img',
                     '.product__media-item img',
@@ -442,7 +398,6 @@ def extract_product_data(product_url):
                     '.product__slide img',
                     '.product-single__thumbnail img'
                 ]
-                #Note: we don't need to do this
                 for selector in gallery_selectors:
                     gallery_images = soup.select(selector)
                     for img in gallery_images:
@@ -452,7 +407,6 @@ def extract_product_data(product_url):
                                 src = f"https:{src}"
                             base_src = src.split('?')[0]
                             if base_src not in [img.split('?')[0] for img in product_data['images']]:
-                                # Clean the URL before adding it
                                 cleaned_src = clean_image_url(src)
                                 product_data['images'].append(cleaned_src)
                                 if len(product_data['images']) >= 4:
@@ -460,17 +414,14 @@ def extract_product_data(product_url):
                         if len(product_data['images']) >= 4:
                             break
 
-                # Try product variant images if still not enough
                 if len(product_data['images']) < 4:
                     for script in soup.find_all('script'):
                         if script.string and ('productImages' in script.string or 'product_images' in script.string):
                             try:
-                                # Look for image URLs in the script content
                                 urls = re.findall(r'https?://[^\s<>"\']+?(?:jpg|jpeg|png|webp)', script.string)
                                 for url in urls:
                                     base_url = url.split('?')[0]
                                     if base_url not in [img.split('?')[0] for img in product_data['images']]:
-                                        # Clean the URL before adding it
                                         cleaned_url = clean_image_url(url)
                                         product_data['images'].append(cleaned_url)
                                         if len(product_data['images']) >= 4:
@@ -478,44 +429,33 @@ def extract_product_data(product_url):
                             except:
                                 continue
 
-        # Add this after the existing image extraction logic in extract_product_data function
-        # If we still don't have enough images, try generic selectors
         if len(product_data['images']) < 4:
-            # Super comprehensive list of generic image selectors
             generic_image_selectors = [
-                # High-priority product image selectors
                 '[id*="product"][id*="image"] img', '[class*="product"][class*="image"] img',
                 '[id*="product"][id*="photo"] img', '[class*="product"][class*="photo"] img',
                 '[id*="product"][id*="media"] img', '[class*="product"][class*="media"] img',
                 '[id*="product"] img', '[class*="product"] img',
                 
-                # Gallery and slider patterns
                 '[class*="gallery"] img', '[class*="slider"] img', '[class*="carousel"] img',
                 '[class*="slide"] img', '[class*="thumbnail"] img', '[class*="preview"] img',
                 '.swiper img', '.slick img', '.owl-carousel img',
                 
-                # Common e-commerce patterns
                 '[class*="main-image"]', '[class*="featured-image"]', '[class*="product-image"]',
                 '[class*="hero-image"]', '[class*="zoom"]', '[class*="magnify"]',
                 
-                # Image containers
                 '[class*="image-container"] img', '[class*="img-container"] img',
                 '[class*="photo-container"] img', '[class*="media-container"] img',
                 
-                # Common attribute patterns
                 '[data-image]', '[data-src]', '[data-lazy]', '[data-srcset]',
                 '[data-zoom]', '[data-zoom-image]', '[data-large]', '[data-full]',
                 '[data-slide]', '[data-thumb]', '[data-preview]',
                 
-                # Schema.org and OpenGraph
                 '[itemprop="image"]', '[property="og:image"]',
                 
-                # Fallback to content areas
                 'main img', 'article img', '.content img', '.product img',
                 '.details img', '.info img', '.description img'
             ]
             
-            # Comprehensive list of image attributes to check
             image_attributes = [
                 'src', 'data-src', 'data-original', 'data-lazy', 'data-srcset',
                 'data-zoom-image', 'data-large', 'data-full', 'data-image',
@@ -526,7 +466,6 @@ def extract_product_data(product_url):
                 'data-super-size', 'data-xlarge', 'href'
             ]
 
-            # Try each selector
             for selector in generic_image_selectors:
                 if len(product_data['images']) >= 4:
                     break
@@ -539,12 +478,10 @@ def extract_product_data(product_url):
                         if len(product_data['images']) >= 4:
                             break
                             
-                        # Try all possible attributes
                         for attr in image_attributes:
                             if img.get(attr):
                                 src = img[attr]
                                 
-                                # Handle srcset attribute
                                 if attr == 'srcset':
                                     try:
                                         srcset = src.split(',')[0].strip().split(' ')[0]
@@ -552,10 +489,8 @@ def extract_product_data(product_url):
                                     except:
                                         continue
                                 
-                                # Clean and validate URL
                                 if src:
                                     try:
-                                        # Handle relative URLs
                                         if src.startswith('//'):
                                             src = 'https:' + src
                                         elif src.startswith('/'):
@@ -567,12 +502,9 @@ def extract_product_data(product_url):
                                             base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
                                             src = f"{base_url}/{src.lstrip('/')}"
                                             
-                                        # Remove URL parameters and check for duplicates
                                         base_src = src.split('?')[0]
                                         if base_src not in [img.split('?')[0] for img in product_data['images']]:
-                                            # Validate image URL extension
                                             if any(base_src.lower().endswith(ext) for ext in ['.jpg','.jpeg','.png','.webp','.gif']):
-                                                # Check image quality and duplicates
                                                 if is_valid_image(src) and not is_duplicate_image(src, product_data['images']):
                                                     product_data['images'].append(src)
                                                     break
@@ -581,17 +513,13 @@ def extract_product_data(product_url):
                 except:
                     continue
 
-            # Try to find images in any JSON/script data
             if len(product_data['images']) < 4:
                 for script in soup.find_all('script'):
                     if script.string:
                         try:
-                            # Look for image URLs in the script content
                             urls = re.findall(r'https?://[^\s<>"\']+?(?:jpg|jpeg|png|webp|gif)', script.string)
-                            # Also look for base64 encoded images
                             base64_images = re.findall(r'data:image/[^;]+;base64,[a-zA-Z0-9+/]+=*', script.string)
                             
-                            # Process regular URLs
                             for url in urls:
                                 base_url = url.split('?')[0]
                                 if base_url not in [img.split('?')[0] for img in product_data['images']]:
@@ -599,7 +527,6 @@ def extract_product_data(product_url):
                                     if len(product_data['images']) >= 4:
                                         break
                                     
-                            # Process base64 images if needed
                             if len(product_data['images']) < 4 and base64_images:
                                 for base64_img in base64_images:
                                     if base64_img not in product_data['images']:
@@ -609,13 +536,11 @@ def extract_product_data(product_url):
                         except:
                             continue
 
-            # Try parsing structured data
             if len(product_data['images']) < 4:
                 for script in soup.find_all('script', type='application/ld+json'):
                     try:
                         json_data = json.loads(script.string)
                         if isinstance(json_data, dict):
-                            # Look for images in common schema.org structures
                             image_fields = ['image', 'images', 'photo', 'photos', 'thumbnail']
                             for field in image_fields:
                                 if field in json_data:
@@ -631,19 +556,16 @@ def extract_product_data(product_url):
                     except:
                         continue
 
-            # Ensure all image URLs are valid and unique
             product_data['images'] = list(dict.fromkeys([
                 img for img in product_data['images'] 
                 if img.startswith(('http://', 'https://', 'data:image/'))
             ]))[:4]
 
-        # Extract store name from URL
         parsed_url = urlparse(product_url)
         store_name = parsed_url.netloc.split('.')[0].upper()
-        if store_name == 'WWW':  # Handle www. prefix
+        if store_name == 'WWW':  
             store_name = parsed_url.netloc.split('.')[1].upper()
 
-        # Update product data
         product_data.update({
             'brand_name': store_name,
             'original_price': float(product_data['price']) * 1.2 if product_data.get('price') else None,
@@ -657,16 +579,14 @@ def extract_product_data(product_url):
             'product_url': product_url
         })
 
-        # After all image extraction attempts, validate the images before returning
         if product_data.get('images'):
             valid_images = []
             for img_url in product_data['images']:
                 if img_url.startswith('data:image'):
                     valid_images.append(img_url)
-                elif is_valid_image(img_url):  # Using existing is_valid_image function
+                elif is_valid_image(img_url): 
                     valid_images.append(img_url)
             
-            # If no valid images found, try CV approach
             if not valid_images:
                 print("\nDebug - No valid images found, attempting CV-based image detection...")
                 cv_images = find_images_with_cv(product_url)
@@ -676,7 +596,6 @@ def extract_product_data(product_url):
             else:
                 product_data['images'] = valid_images
 
-        # If still no images found, try computer vision approach (existing fallback)
         if not product_data.get('images'):
             print("\nDebug - Attempting CV-based image detection...")
             cv_images = find_images_with_cv(product_url)
@@ -697,47 +616,37 @@ def generate_ad_creative(product_data, output_path, width=300, height=300, templ
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template(template_name)
 
-    # Store original numeric values
     original_price_value = product_data.get('price')
     original_original_price_value = product_data.get('original_price')
 
-    # Add clickTag with properly encoded special characters
     url = product_data.get('product_url', '')
     parsed_url = urlparse(url)
     
-    # Encode the path components individually to preserve URL structure
     path_parts = parsed_url.path.split('/')
     encoded_path_parts = [part.replace('-', '%2D') for part in path_parts]
     encoded_path = '/'.join(encoded_path_parts)
     
-    # Reconstruct the URL preserving the original scheme and domain
     encoded_url = f"{parsed_url.scheme}://{parsed_url.netloc}{encoded_path}"
     if parsed_url.query:
         encoded_url += f"?{parsed_url.query}"
     if parsed_url.fragment:
         encoded_url += f"#{parsed_url.fragment}"
         
-    # Store both the encoded and original URLs
     product_data['clickTag'] = encoded_url
-    product_data['product_url'] = encoded_url  # This is what the template will use
-
-    # Format prices with ₹ symbol (without $)
+    product_data['product_url'] = encoded_url  
     if product_data.get('price'):
         price = f"₹{int(float(original_price_value)):,}"
-        # Remove any $ symbol if present
         price = price.replace('$', '')
     else:
         price = None
         
     if product_data.get('original_price'):
         original_price = f"₹{int(float(original_original_price_value)):,}"
-        # Remove any $ symbol if present
         original_price = original_price.replace('$', '')
 
     else:
         original_price = None
     
-    # Keep the original numeric values in product_data
     product_data['price'] = original_price_value
     product_data['original_price'] = original_original_price_value
 
@@ -777,14 +686,12 @@ def get_all_product_urls(shop_url):
         for product in products:
             all_product_urls.append(f"{shop_url}/products/{product['handle']}")
             
-            # Break if we have 5 products
             if len(all_product_urls) >= 1:
                 return all_product_urls[:1]
                 
         page += 1
     
-    return all_product_urls[:5]  # Ensure we only return 5 products
-
+    return all_product_urls[:5]  
 def validate_product_data(product_data):
     """
     Validates product data and images are still accessible
@@ -794,7 +701,6 @@ def validate_product_data(product_data):
         if not product_data.get(field):
             raise ValueError(f"Missing required field: {field}")
             
-    # Validate images are accessible
     for image_url in product_data.get('images', []):
         response = requests.head(image_url)
         if response.status_code != 200:
@@ -805,7 +711,6 @@ def find_images_with_cv(product_url):
     Uses Selenium and OpenCV to find product images on the page
     """
     try:
-        # Setup headless Chrome
         chrome_options = Options()
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
@@ -814,16 +719,12 @@ def find_images_with_cv(product_url):
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(product_url)
         
-        # Wait for page to load
         driver.implicitly_wait(5)
         
-        # Take screenshot
         screenshot = driver.get_screenshot_as_png()
         nparr = np.frombuffer(screenshot, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        # Find potential product image areas
-        # Look for rectangular areas that might be product images
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         edges = cv2.Canny(gray, 50, 150)
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -831,10 +732,8 @@ def find_images_with_cv(product_url):
         potential_images = []
         for contour in contours:
             x, y, w, h = cv2.boundingRect(contour)
-            # Filter for reasonable image sizes
-            if w > 200 and h > 200:  # Minimum size threshold
+            if w > 200 and h > 200:  
                 roi = img[y:y+h, x:x+w]
-                # Save region as PNG
 
                 is_success, buffer = cv2.imencode(".png", roi)
                 if is_success:
@@ -842,9 +741,8 @@ def find_images_with_cv(product_url):
         
         driver.quit()
         
-        # Convert to base64 for storage
         image_urls = []
-        for i, img_bytes in enumerate(potential_images[:4]):  # Limit to 4 images
+        for i, img_bytes in enumerate(potential_images[:4]): 
             img = Image.open(img_bytes)
             buffered = BytesIO()
             img.save(buffered, format="PNG")
@@ -856,96 +754,6 @@ def find_images_with_cv(product_url):
     except Exception as e:
         print(f"Debug - Error in CV image detection: {str(e)}")
         return []
-
-def capture_ad_as_gif(html_path, output_gif_path, width=300, height=250, duration=5, fps=30):  # Increased fps from 24 to 30
-    """
-    Captures the HTML ad animation as a GIF using Playwright with higher quality settings
-    """
-    try:
-        with sync_playwright() as p:
-            # Launch browser with specific viewport
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                viewport={'width': width, 'height': height},
-                device_scale_factor=2  # Keep at 2 to maintain proper scaling
-            )
-            page = context.new_page()
-            
-            # Navigate to the HTML file
-            page.goto(f"file://{os.path.abspath(html_path)}")
-            
-            # Wait for the ad container to be ready
-            page.wait_for_selector('.ad-container')
-            
-            # Inject custom styles to ensure proper rendering
-            page.add_style_tag(content="""
-                body { margin: 0; padding: 0; overflow: hidden; }
-                .ad-container {
-                    width: 300px !important;
-                    height: 250px !important;
-                    overflow: hidden !important;
-                    position: relative !important;
-                    transform: none !important;
-                }
-            """)
-            
-            # Wait for animations to start
-            page.wait_for_timeout(1000)
-            
-            # Capture frames with higher quality settings
-            frames = []
-            frame_count = duration * fps
-            
-            for _ in range(frame_count):
-                # Capture screenshot with higher quality
-                screenshot = page.screenshot(
-                    clip={"x": 0, "y": 0, "width": width, "height": height},
-                    type='png',
-                    quality=100
-                )
-                
-                # Convert to PIL Image
-                img = Image.open(io.BytesIO(screenshot))
-                frames.append(img)
-                
-                # Wait for next frame
-                page.wait_for_timeout(int(1000/fps))
-            
-            # Save as optimized GIF with higher quality settings
-            frames[0].save(
-                output_gif_path,
-                save_all=True,
-                append_images=frames[1:],
-                optimize=False,
-                duration=int(1000/fps),
-                loop=0,
-                quality=100
-            )
-            
-            # Close browser
-            browser.close()
-            
-            print(f"Generated GIF: {output_gif_path}")
-            
-            # Optimize file size while maintaining quality
-            try:
-                with Image.open(output_gif_path) as img:
-                    img.save(
-                        output_gif_path,
-                        save_all=True,
-                        append_images=list(ImageSequence.Iterator(img))[1:],
-                        optimize=True,
-                        duration=int(1000/fps),
-                        loop=0,
-                        quality=100,  # Increased from 95 to 100
-                        disposal=2,
-                        transparency=0
-                    )
-            except Exception as e:
-                print(f"Warning: Could not optimize GIF: {str(e)}")
-                
-    except Exception as e:
-        print(f"Error generating GIF: {str(e)}")
 
 def main():
     try:
