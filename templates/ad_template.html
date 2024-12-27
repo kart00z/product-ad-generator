@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="ad.size" content="width={{ width }},height={{ height }}">
+    <script type="text/javascript">
+        var clickTag = "{{ product_url | replace('-', '%2D') | safe }}";
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        .ad-container {
+            width: {{ width }}px;
+            height: {{ height }}px;
+            border-radius: 8px;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            background: linear-gradient(to right, #ffffff, #f8f9fa);
+            display: flex;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(20px);
+            transition: transform 0.3s ease;
+            {% if width == 300 and height == 250 %}
+            flex-direction: row;
+            padding: 0;
+            gap: 0;
+            {% elif width > height %}
+            flex-direction: row;
+            {% else %}
+            flex-direction: column;
+            {% endif %}
+        }
+
+        .ad-container:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+        }
+
+        .ad-image-container {
+            position: relative;
+            {% if width == 300 and height == 250 %}
+            width: 60%;
+            height: 100%;
+            {% elif width > height %}
+            width: 40%;
+            height: 100%;
+            {% else %}
+            width: 100%;
+            height: 60%;
+            {% endif %}
+            overflow: hidden;
+        }
+
+        .carousel {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .carousel-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .carousel-slide {
+            min-width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            transition: transform 0.5s ease;
+        }
+
+        .carousel-nav {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 2;
+        }
+
+        .carousel-dot {
+            width: 6px;
+            height: 6px;
+            background: rgba(255,255,255,0.7);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .carousel-dot.active {
+            background: white;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            transform: scale(1.3);
+        }
+
+        .carousel-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #333;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 2;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(5px);
+        }
+
+        .carousel-button.prev {
+            left: 10px;
+        }
+
+        .carousel-button.next {
+            right: 10px;
+        }
+
+        .ad-image-container:hover .carousel-button {
+            opacity: 1;
+        }
+
+        .carousel-button:hover {
+            background: rgba(255, 255, 255, 0.95);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        /* Progress bar for auto-slide */
+        .carousel-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            z-index: 2;
+        }
+
+        .carousel-progress-bar {
+            height: 100%;
+            background: white;
+            width: 0;
+            transition: width 0.1s linear;
+        }
+
+        .sale-badge {
+            position: absolute;
+            top: 10px;
+            right: 5px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            animation: pulseGlow 2s infinite;
+            border: 2px solid white;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+
+        .ad-details {
+            {% if width == 300 and height == 250 %}
+            width: 40%;
+            padding: 8px;
+            {% elif width > height %}
+            width: 60%;
+            {% else %}
+            width: 100%;
+            height: 40%;
+            {% endif %}
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.8));
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
+            border-left: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .brand-name {
+            font-size: 9px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: -0.2px;
+            margin-bottom: 2px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: visible;
+            padding-right: 2px;
+            display: inline-block;
+            max-width: none;
+            background: linear-gradient(45deg, #1a1a1a, #4a4a4a);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .ad-title {
+            font-size: 11px;
+            color: #2d3436;
+            font-weight: 600;
+            margin-bottom: 3px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.2;
+        }
+
+        .price-container {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+
+        .current-price {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(45deg, #FF5722, #FF8F00);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .original-price {
+            font-size: 11px;
+            color: #999;
+            text-decoration: line-through;
+            margin-left: 2px;
+        }
+
+        .discount {
+            background-color: #FF5722;
+            color: white;
+            padding: 1px 2px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+            margin-left: 1px;
+            white-space: nowrap;
+        }
+
+        .ad-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            background-color: #0984e3;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: auto;
+        }
+
+        .ad-button:hover {
+            background-color: #0062cc;
+            transform: translateY(-1px);
+        }
+
+        .features {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .feature {
+            font-size: 11px;
+            color: #666;
+            background-color: #f1f2f6;
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .rating {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 3px;
+        }
+
+        .stars {
+            color: #ffd700;
+            font-size: 12px;
+            background: linear-gradient(45deg, #f1c40f, #f39c12);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+
+        .review-count {
+            font-size: 10px;
+            color: #666;
+        }
+
+        .shipping {
+            font-size: 10px;
+            color: #2ecc71;
+            margin-bottom: 2px;
+            font-weight: 500;
+            color: #27ae60;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .shipping::before {
+            content: '✓';
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        .cta-button-container {
+            position: relative;
+            margin-top: auto;
+            text-align: center;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            position: relative;
+            overflow: hidden;
+            width: 85%;
+        }
+
+        .cta-button:before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
+            transform: rotate(45deg);
+            animation: shimmerPremium 3s infinite;
+            background-clip: text;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+            background: linear-gradient(135deg, #3498db, #2c3e50);
+        }
+
+        .cta-button:active {
+            transform: translateY(1px);
+        }
+
+        .urgency-tag {
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #f1c40f, #f39c12);
+            color: white;
+            font-size: 9px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            white-space: nowrap;
+            animation: floatUpDown 3s infinite;
+            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+        }
+
+        @keyframes shimmerPremium {
+            0% { transform: rotate(45deg) translateY(-100%); }
+            100% { transform: rotate(45deg) translateY(100%); }
+        }
+
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 10px rgba(231, 76, 60, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(231, 76, 60, 0.5); }
+            100% { box-shadow: 0 0 10px rgba(231, 76, 60, 0.3); }
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+
+        @keyframes floatUpDown {
+            0%, 100% { transform: translateY(0) translateX(-50%); }
+            50% { transform: translateY(-3px) translateX(-50%); }
+        }
+
+        /* Add stock indicator */
+        .stock-indicator {
+            font-size: 9px;
+            color: #e74c3c;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #e74c3c;
+            font-weight: 600;
+            animation: fadeInOut 2s infinite;
+        }
+
+        .stock-indicator::before {
+            content: "●";
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Specific adjustments for 300x250 size */
+        {% if width == 300 and height == 250 %}
+        .ad-details {
+            font-family: 'Plus Jakarta Sans', sans-serif;  /* Changed font family */
+            padding: 6px 8px;  /* Increased padding */
+        }
+
+        .brand-name {
+            font-size: 10px;
+            font-weight: 600;
+            color: #2d3436;
+            margin-bottom: 4px;
+            padding-right: 4px;
+        }
+
+        .rating {
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 2px;  /* Reduce gap slightly */
+        }
+
+        .stars {
+            font-size: 15px;
+            color: #ffd700;
+            flex-shrink: 0;  /* Prevent stars from shrinking */
+        }
+
+        .review-count {
+            font-size: 11px;
+            color: #64748b;
+            white-space: nowrap;
+            margin-left: 2px;  /* Add small spacing after stars */
+        }
+
+        .price-container {
+            gap: 5px;
+            margin-bottom: 6px;
+            align-items: center;
+        }
+
+        .current-price {
+            font-size: 18px;  /* Larger */
+            font-weight: 700;
+            color: #ff5722;  /* More vibrant */
+            letter-spacing: -0.3px;
+        }
+
+        .original-price {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .discount {
+            background-color: #ff5722;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .shipping {
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #10b981;
+            font-weight: 500;
+        }
+
+        .shipping::before {
+            display: none;  /* Remove any potential pseudo element */
+        }
+
+        /* CTA button adjustments */
+        .cta-button {
+            font-size: 16px;  /* Increased from 15px */
+            padding: 10px 16px;
+            margin-top: 6px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            background: linear-gradient(45deg, #ff5722, #ff7043);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(255, 87, 34, 0.25);
+        }
+
+        .cta-button:hover {
+            background: linear-gradient(45deg, #ff7043, #ff5722);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 87, 34, 0.3);
+        }
+        {% endif %}
+
+        .product-images {
+            width: {{ width }}px;
+            height: {{ height }}px;
+            position: relative;
+        }
+        .product-image {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .product-image.active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="ad-container">
+        <div class="ad-image-container">
+            <div class="carousel">
+                <div class="carousel-inner">
+                    {% for image in images %}
+                    <div class="carousel-slide" style="background-image: url('{{ image | replace("-", "%2D") | replace("_-_", "_%2D_") | safe }}');"></div>
+                    {% endfor %}
+                </div>
+                <div class="carousel-nav">
+                    {% for image in images %}
+                    <div class="carousel-dot {% if loop.first %}active{% endif %}"></div>
+                    {% endfor %}
+                </div>
+                <button class="carousel-button prev">‹</button>
+                <button class="carousel-button next">›</button>
+                <div class="carousel-progress">
+                    <div class="carousel-progress-bar"></div>
+                </div>
+            </div>
+            {% if discount_percent %}
+            <div class="sale-badge">{{ discount_percent }}% OFF</div>
+            {% endif %}
+        </div>
+        <div class="ad-details">
+            <div>
+                <div class="brand-name">{{ brand_name }}</div>
+                <div class="ad-title">{{ title }}</div>
+                {% if rating and rating > 0 and review_count and review_count > 0 %}
+                <div class="rating">
+                    <div class="stars">★★★★★</div>
+                    <span class="review-count">{{ review_count }}</span>
+                </div>
+                {% endif %}
+                <div class="price-container">
+                    <span class="current-price">{{ price }}</span>
+                    {% if original_price %}
+                    <span class="original-price">{{ original_price }}</span>
+                    <span class="discount">-{{ discount_percent }}%</span>
+                    {% endif %}
+                </div>
+                <div class="shipping">✓ Free Shipping Available</div>
+                <div class="stock-indicator">Limited Stock Available</div>
+            </div>
+            <div class="cta-button-container">
+                <div class="urgency-tag">🔥 Popular Choice</div>
+                <a href="javascript:window.open(clickTag)" class="cta-button">
+                    BUY NOW
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const carousel = document.querySelector('.carousel');
+            const slides = carousel.querySelectorAll('.carousel-slide');
+            const dots = carousel.querySelectorAll('.carousel-dot');
+            const progressBar = carousel.querySelector('.carousel-progress-bar');
+            let currentSlide = 0;
+            let autoSlideInterval;
+            let progressInterval;
+            const slideInterval = 5000; // Time between slides in ms
+
+            function updateSlide(index) {
+                const inner = carousel.querySelector('.carousel-inner');
+                inner.style.transform = `translateX(-${index * 100}%)`;
+                
+                // Update dots
+                dots.forEach(dot => dot.classList.remove('active'));
+                dots[index].classList.add('active');
+                
+                // Reset progress bar
+                clearInterval(progressInterval);
+                progressBar.style.width = '0%';
+                startProgressBar();
+            }
+
+            function nextSlide() {
+                currentSlide = (currentSlide + 1) % slides.length;
+                updateSlide(currentSlide);
+            }
+
+            function prevSlide() {
+                currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+                updateSlide(currentSlide);
+            }
+
+            function startAutoSlide() {
+                clearInterval(autoSlideInterval);
+                autoSlideInterval = setInterval(nextSlide, slideInterval);
+            }
+
+            function startProgressBar() {
+                let progress = 0;
+                progressBar.style.width = '0%';
+                progressInterval = setInterval(() => {
+                    progress += 100 / (slideInterval / 100); // Update every 100ms
+                    progressBar.style.width = `${Math.min(progress, 100)}%`;
+                }, 100);
+            }
+
+            // Event listeners
+            carousel.querySelector('.prev').addEventListener('click', (e) => {
+                e.preventDefault();
+                prevSlide();
+                startAutoSlide();
+            });
+
+            carousel.querySelector('.next').addEventListener('click', (e) => {
+                e.preventDefault();
+                nextSlide();
+                startAutoSlide();
+            });
+
+            dots.forEach((dot, index) => {
+                dot.addEventListener('click', () => {
+                    currentSlide = index;
+                    updateSlide(currentSlide);
+                    startAutoSlide();
+                });
+            });
+
+            // Start automatic slideshow
+            startAutoSlide();
+            startProgressBar();
+
+            // Pause on hover
+            carousel.addEventListener('mouseenter', () => {
+                clearInterval(autoSlideInterval);
+                clearInterval(progressInterval);
+            });
+
+            carousel.addEventListener('mouseleave', () => {
+                startAutoSlide();
+                startProgressBar();
+            });
+        });
+
+        function showImage(index) {
+            const images = document.querySelectorAll('.product-image');
+            images.forEach(img => img.classList.remove('active'));
+            images[index].classList.add('active');
+        }
+    </script>
+</body>
+</html> 
