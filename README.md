@@ -42,14 +42,14 @@ Output files will be created in the `output` directory.
 ## Project Structure
 ```
 product-ad-generator/
-├── shopify_ad_tool_working.py    # Main script
-├── requirements.txt              # Python dependencies
-├── README.md                     # Project documentation
-├── .gitignore                   # Git ignore file
-├── output/                      # Generated ads output
+├── shopify_ad_tool_working.py    
+├── requirements.txt              
+├── README.md                     
+├── .gitignore                   
+├── output/                      
 │   └── .gitkeep
-└── templates/                   # HTML templates
-    └── ad_template.html        # Ad creative template
+└── templates/                   
+    └── ad_template.html        
 ```
 
 
