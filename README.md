@@ -3,13 +3,12 @@ A work-in-progress build that generates HTML5 ad creatives from any product page
 ## Features
 - Extracts product data from any product page
  Generates HTML5 ad creatives in multiple sizes (300x250, 300x600, 728x90)
- Automatic image carousel with smooth transitions
- Responsive design with modern UI elements
- Price comparison and discount highlighting
- Mobile-friendly and cross-browser compatible
- Automatic image quality validation
- Duplicate image detection
- Fallback image detection using OpenCV
+ `Automatic image carousel with smooth transitions`
+ `Responsive design with modern UI elements`
+ `Price comparison and discount highlighting`
+ `Mobile-friendly and cross-browser compatible`
+ `Automatic image quality validation`
+ `Fallback image detection using OpenCV`
 ## Requirements
 - Python 3.7+
  Chrome WebDriver (for Selenium)
