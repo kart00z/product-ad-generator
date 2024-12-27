@@ -1,5 +1,5 @@
 # Shopify Ad Creative Generator
-An automated tool to generate HTML5 ad creatives from Shopify product pages. This tool extracts product information and generates responsive, animated ad banners in multiple standard sizes.
+A work-in-progress automated tool to generate HTML5 ad creatives from Shopify product pages. This tool extracts product information and generates responsive, animated ad banners in multiple standard sizes.
 ## Features
 - Extracts product data from any Shopify product page
  Generates HTML5 ad creatives in multiple sizes (300x250, 300x600, 728x90)
