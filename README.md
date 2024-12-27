@@ -40,12 +40,14 @@ When prompted, enter a Shopify product URL. The script will generate ad creative
 Output files will be created in the `output` directory.
 
 ## Project Structure
-`product-ad-generator/
+```
+product-ad-generator/
 ├── shopify_ad_tool_working.py # Main script
 ├── requirements.txt # Python dependencies
 ├── README.md # Project documentation
-└── templates/ # HTML templates
-└── ad_template.html # Ad creative template`
+├── templates/ # HTML templates
+└── ad_template.html # Ad creative template
+```
 
 
 ## How It Works
