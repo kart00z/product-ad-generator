@@ -24,7 +24,7 @@ cd product-ad-generator`
 `bash
 pip install -r requirements.txt`
 
-3. Install Chrome WebDriver for your Chrome version
+3. Install Chrome WebDriver for your Chrome version (optional)
 
 ## Usage
 
